@@ -1,0 +1,52 @@
+capture:    # I/O settings
+  input_csv: ""   # Default input csv full path
+  output_dir: ""    # Default output directory full path; leave blank to use /home/YOUR_USER/Documents/FlycamApp/well_photos
+  output_prefix: ""   # Optional prefix for all photos
+  output_suffix: ""   # Optional suffix for all photos
+
+
+plate:    # Used to properly count and name .jpg files
+  rows: 6   # 48 Well Plate
+  columns: 8    # 48 Well Plate
+
+camera:
+  resolution:   # Allocate 256+ mb of the GPU at high resolutions
+    preview:    # Preview Resolution
+      width: 960    # PiCamera default: 640
+      height: 720   # PiCamera default: 480
+    picture:    # Picture Resolution
+      width: 4056   # PiCamera default: 1920
+      height: 3040  # PiCamera default: 1090
+  core:
+    rotation: 180    # Adjust based on your setup
+    framerate: 30   # PiCamera default: 30
+    iso: 100    # PiCamera default: (auto)
+    shutter: 10000    # PiCamera default: (auto); in μs
+    sleep_multiplier: 2.0   # Typically wait twice (2.0) the amount length of the shutter speed
+    sleep_addition: 0.0   # Adds a flat wait time; in s
+    exposure_mode: 'auto'   # PiCamera default: 'auto'; manual with 'off'
+    awb_mode: 'auto'   # PiCamera default: 'auto'; manual with 'off'
+  tuning:
+    brightness: 50    # PiCamera default: 50; [0,100]
+    contrast: 0   # PiCamera default: 0; [-100,100]
+    sharpness: 0    # PiCamera default: 0; [-100,100]
+    saturation: 0   # PiCamera default: 0; [-100,100]
+    red_gain: 1.0   # PiCamera default: (auto); [0.9,8.0], practical range
+    blue_gain:  1.0   # PiCamera default: (auto); [0.9,8.0], practical range
+
+misc:
+  preview_by_default: True    # Set to True to set preview mode as the default capture mode
+  verbose: True   # Set to True to turn on verbose mode
+  home_on_startup: True   # Set to True to home on startup
+
+printer:
+  name: "Ender 3"
+  device_path: "/dev/ttyUSB0"   # USB adapter port
+  baudrate: 115200    # 115200 default for Marlin firmware
+  timeout_time: 5
+  move_sleep_time: 0.0    # Additional wait time between movement (s)
+  max:
+    x: 220
+    y: 220
+    z: 250
+    speed: 150
