@@ -46,6 +46,8 @@ class DefaultsConfig:
             self.preview_by_default = config['misc']['preview_by_default']
             self.picture_by_default = not self.preview_by_default
             self.verbose_mode = config['misc']['verbose']
+            self.zstack_plus_minus_count = config['misc']['zstack_plus_minus_count']
+            self.zstack_step_distance = config['misc']['zstack_step_distance']
 
             # Printer Connection
             self.printer_name = config['printer']['name']
