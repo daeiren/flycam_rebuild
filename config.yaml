@@ -12,7 +12,7 @@ plate:    # Used to properly count and name .jpg files
 camera:
   resolution:   # Allocate 256+ mb of the GPU at high resolutions
     preview:    # Preview Resolution
-      width: 507    # PiCamera default: 640
+      width: 570    # PiCamera default: 640
       height: 380   # PiCamera default: 480
     picture:    # Picture Resolution
       width: 4056   # PiCamera default: 1920
@@ -37,9 +37,9 @@ camera:
 misc:
   preview_by_default: False    # Set to True to set preview mode as the default capture mode
   verbose: True   # Set to True to turn on verbose mode
-  home_on_startup: True   # Set to True to home on startup
-  zstack_plus_minus_count: 2    # Adds n number of z variation up and down from the set path in increments of 0.1mm. At n=5, 11 pictures will be taken for each well.
-  zstack_step_distance: 0.1    # How far each stack layer is from each other in millimeters
+  home_on_startup: False   # Set to True to home on startup
+  zstack_plus_minus_count: 1    # Adds n number of z variation up and down from the set path in increments of 0.1mm. At n=5, 11 pictures will be taken for each well.
+  zstack_step_distance: 0.3    # How far each stack layer is from each other in millimeters
 
 printer:
   name: "Ender 3"

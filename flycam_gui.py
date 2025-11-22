@@ -48,8 +48,14 @@ class Keys:
     OUTPUT_PREVIEW = "-OUTPUT_PREVIEW-"
     ZSTACK_ON = "-ZSTACK_ON-"
     ZSTACK_COUNT = "-ZSTACK_COUNT-"
+    # ----- Well Selection Section -----
+    OPEN_WELL_SELECTION_SECTION = "-OPEN_WELL_SELECTION_SECTION-"
+    GRAPH = "-GRAPH-"
+    SELECT_ROW = "-SELECT_ROW-"
+    SELECT_COL = "-SELECT_COL-"
+    SELECT_WELL = "-SELECT_WELL"
     # ----- Camera Settings -----
-    OPEN_SECTION = "-OPEN_SECTION-"
+    OPEN_CAMERA_SETTINGS_SECTION = "-OPEN_CAMERA_SETTINGS_SECTION-"
     CAMERA_SECTION = "-CAMERA_SECTION-"
     PIC_WIDTH = "-PIC_WIDTH-"
     PIC_HEIGHT = "PIC_HEIGHT-"
@@ -396,9 +402,9 @@ def main():
     # ===== Printer Startup =====
     # Setup 3D Printer
     ser = printer.get_printer()
-
-    print("Homing")
-    printer.home()
+    if cfg.home_on_startup:
+        print("Homing")
+        printer.home()
     print("Done!")
     print("Opening Window")
 
@@ -406,6 +412,21 @@ def main():
     sg.theme("LightBrown2")
     # sg.set_options(font=('Courier',12))
     # ----- Tab 1 (Run Capture) -----
+    
+    checkbox_grid_row_selectors = [[sg.VPush()]]
+    for r in range(1,cfg.num_rows+1):
+        checkbox_grid_row_selectors.append([sg.Checkbox(f'{r}', key=(Keys.SELECT_ROW,r))])
+    checkbox_grid_layout = []
+    for c in range(1,cfg.num_cols+1):
+        col_elements = [
+                        [sg.Checkbox(f'', key=(Keys.SELECT_COL,c))],
+                        [sg.Text(f'{c}')]
+                        ]
+        for r in range(1,cfg.num_rows+1):
+            col_elements.append([sg.Checkbox(f'', key=(Keys.SELECT_WELL,(r,c)))])
+        checkbox_grid_layout.append(sg.Column(col_elements))
+    tab_1_column_1_collapse_layout_well_select = sg.pin(sg.Column([[sg.Column(checkbox_grid_row_selectors, expand_y=True),
+                                                                    sg.Column([checkbox_grid_layout])]]))
     # Advanced camera settings collapsible
     # Left column, core settings subsection
     core_settings_col = [
@@ -468,7 +489,9 @@ def main():
         # [sg.Text("Well Plate Size "), sg.Input(default_text=cfg.num_cols, size=(3, 1), key=Keys.NUM_COLS), sg.Text("columns x "),
         # sg.Input(default_text=cfg.num_rows, size=(3, 1), key=Keys.NUM_ROWS), sg.Text("rows")],
         [sg.VPush()],
-        [sg.Text("▶ Camera Settings", enable_events=True, key=Keys.OPEN_SECTION)],
+        [sg.Text("▶ Well Selection", enable_events=True, key=Keys.OPEN_WELL_SELECTION_SECTION)],
+        [tab_1_column_1_collapse_layout_well_select],
+        [sg.Text("▶ Camera Settings", enable_events=True, key=Keys.OPEN_CAMERA_SETTINGS_SECTION)],
         [tab_1_column_1_collapse_layout],
         #[sg.VPush(background_color='orange')],
         [sg.Checkbox("Z-Stack", key=Keys.ZSTACK_ON), sg.Input(cfg.zstack_plus_minus_count, size=(4,1), key=Keys.ZSTACK_COUNT)],
@@ -644,9 +667,9 @@ def main():
             elif event == Keys.OUTPUT_DIR or event == Keys.OUTPUT_PREFIX or event == Keys.OUTPUT_SUFFIX:
                 window[Keys.OUTPUT_PREVIEW].update(f"{values[Keys.OUTPUT_DIR]}/{values[Keys.OUTPUT_PREFIX]}wellXX_YYYY-MM-DD_hhmmss{values[Keys.OUTPUT_SUFFIX]}.jpg")
             # Camera Settings Section
-            elif event.startswith(Keys.OPEN_SECTION):
+            elif event.startswith(Keys.OPEN_CAMERA_SETTINGS_SECTION):
                 opened = not opened
-                window[Keys.OPEN_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
+                window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
                 window[Keys.CAMERA_SECTION].update(visible=opened)
             # Update Slider and Text
             # Brightness
@@ -793,7 +816,7 @@ def main():
                     # Close Camera Settings Dropdown if opened when switching tabs
                     if opened:
                         opened = not opened
-                        window[Keys.OPEN_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
+                        window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
                         window[Keys.CAMERA_SECTION].update(visible=opened)
 
                     # Show Image Preview
