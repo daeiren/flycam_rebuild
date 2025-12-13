@@ -40,7 +40,8 @@ misc:
   home_on_startup: False   # Set to True to home on startup
   zstack_plus_minus_count: 1    # Adds n number of z variation up and down from the set path in increments of 0.1mm. At n=5, 11 pictures will be taken for each well.
   zstack_step_distance: 0.3    # How far each stack layer is from each other in millimeters
-
+  require_printer_connection: True    # Require a connected printer to open the GUI. default: True
+  
 printer:
   name: "Ender 3"
   device_path: "/dev/ttyUSB0"   # USB adapter port

@@ -50,7 +50,6 @@ class Keys:
     ZSTACK_COUNT = "-ZSTACK_COUNT-"
     # ----- Well Selection Section -----
     OPEN_WELL_SELECTION_SECTION = "-OPEN_WELL_SELECTION_SECTION-"
-    GRAPH = "-GRAPH-"
     SELECT_ROW = "-SELECT_ROW-"
     SELECT_COL = "-SELECT_COL-"
     SELECT_WELL = "-SELECT_WELL"
@@ -346,24 +345,32 @@ def run_capture(event, values, log, thread_done, thread_stop, preview_win_id):
             time.sleep(float(cfg.move_sleep_time))
 
             # Take Picture
-            if preview_mode is False:
-                log.info(f"Starting capture cycle")           
-                photo_file_path = ioh.get_photo_path(values[Keys.OUTPUT_DIR], values[Keys.OUTPUT_PREFIX], values[Keys.OUTPUT_SUFFIX], "%02d" % cycle)
-                os.makedirs(os.path.dirname(photo_file_path), exist_ok=True)
-                camera.capture(photo_file_path)
-                capture_sleep_time = (camera.shutter_speed / 1_000_000 * float(cfg.sleep_multiplier)) + float(cfg.sleep_addition)
-                log.debug(f"Sleeping for {capture_sleep_time} seconds")
-                time.sleep(capture_sleep_time)
-                log.say(f"[INFO] Captured image {cycle}/{well_count}")
-                log.info(f"Saved image as {photo_file_path}")
+            # Deconvolute current position from well number
+            current_row = ((well_number - 1) // cfg.num_cols) + 1
+            current_col = (well_number % cfg.num_cols) if (well_number % cfg.num_cols) != 0 else 8
+            if values[(Keys.SELECT_WELL, (current_row, current_col))]:      # If current (r,c) position is selected for
+                if preview_mode is False:    
+                    log.info(f"Starting capture cycle")           
+                    photo_file_path = ioh.get_photo_path(values[Keys.OUTPUT_DIR], values[Keys.OUTPUT_PREFIX], values[Keys.OUTPUT_SUFFIX], "%02d" % cycle)
+                    os.makedirs(os.path.dirname(photo_file_path), exist_ok=True)
+                    camera.capture(photo_file_path)
+                    capture_sleep_time = (camera.shutter_speed / 1_000_000 * float(cfg.sleep_multiplier)) + float(cfg.sleep_addition)
+                    log.debug(f"Sleeping for {capture_sleep_time} seconds")
+                    time.sleep(capture_sleep_time)
+                    log.say(f"[INFO] Captured image {cycle}/{well_count}")
+                    log.info(f"Saved image as {photo_file_path}")
+                
+                else:
+                    log.info(f"Starting capture cycle")           
+                    photo_file_path = ioh.get_photo_path(values[Keys.OUTPUT_DIR], values[Keys.OUTPUT_PREFIX], values[Keys.OUTPUT_SUFFIX], "%02d" % well_number)
+                    capture_sleep_time = (camera.shutter_speed / 1_000_000 * float(cfg.sleep_multiplier)) + float(cfg.sleep_addition)
+                    log.debug(f"Sleeping for {capture_sleep_time} seconds")
+                    time.sleep(capture_sleep_time)
+                    log.say(f"[INFO] No image {cycle}/{well_count} captured (preview mode is ON)")
+                    log.info(f"Did not save image as {photo_file_path}")
             else:
-                log.info(f"Starting capture cycle")           
-                photo_file_path = ioh.get_photo_path(values[Keys.OUTPUT_DIR], values[Keys.OUTPUT_PREFIX], values[Keys.OUTPUT_SUFFIX], "%02d" % well_number)
-                capture_sleep_time = (camera.shutter_speed / 1_000_000 * float(cfg.sleep_multiplier)) + float(cfg.sleep_addition)
-                log.debug(f"Sleeping for {capture_sleep_time} seconds")
-                time.sleep(capture_sleep_time)
-                log.say(f"[INFO] No image captured (preview mode is ON)")
-                log.info(f"Did not save image as {photo_file_path}")
+                    log.info(f"Skipping capture cycle")
+                    log.say(f"[INFO] Skipped {cycle}/{well_count}")
             
             # Flips row flag every 8 columns
             if cycle % cols == 0:
@@ -415,15 +422,15 @@ def main():
     
     checkbox_grid_row_selectors = [[sg.VPush()]]
     for r in range(1,cfg.num_rows+1):
-        checkbox_grid_row_selectors.append([sg.Checkbox(f'{r}', key=(Keys.SELECT_ROW,r))])
+        checkbox_grid_row_selectors.append([sg.Checkbox(f'{r}', default=True, key=(Keys.SELECT_ROW,r), enable_events=True)])
     checkbox_grid_layout = []
     for c in range(1,cfg.num_cols+1):
         col_elements = [
-                        [sg.Checkbox(f'', key=(Keys.SELECT_COL,c))],
+                        [sg.Checkbox(f'', default=True, key=(Keys.SELECT_COL,c), enable_events=True)],
                         [sg.Text(f'{c}')]
                         ]
         for r in range(1,cfg.num_rows+1):
-            col_elements.append([sg.Checkbox(f'', key=(Keys.SELECT_WELL,(r,c)))])
+            col_elements.append([sg.Checkbox(f'', default=True, key=(Keys.SELECT_WELL,(r,c)))])
         checkbox_grid_layout.append(sg.Column(col_elements))
     tab_1_column_1_collapse_layout_well_select = sg.pin(sg.Column([[sg.Column(checkbox_grid_row_selectors, expand_y=True),
                                                                     sg.Column([checkbox_grid_layout])]]))
@@ -634,7 +641,7 @@ def main():
     is_running_home = False
     is_running_manual = False
 
-    opened = False
+    camera_section_opened_flag = False
     # ----- Logger setup -----
     output_queue = queue.Queue()
     log = Logger(verbose=True, output_queue=output_queue)
@@ -666,11 +673,21 @@ def main():
                 break
             elif event == Keys.OUTPUT_DIR or event == Keys.OUTPUT_PREFIX or event == Keys.OUTPUT_SUFFIX:
                 window[Keys.OUTPUT_PREVIEW].update(f"{values[Keys.OUTPUT_DIR]}/{values[Keys.OUTPUT_PREFIX]}wellXX_YYYY-MM-DD_hhmmss{values[Keys.OUTPUT_SUFFIX]}.jpg")
+            elif isinstance(event, tuple):
+                if event[0] == Keys.SELECT_COL:
+                    c = event[1]
+                    for r in range(1,cfg.num_rows+1):
+                        window[(Keys.SELECT_WELL,(r,c))].update(value=values[event])
+                elif event[0] == Keys.SELECT_ROW:
+                    r = event[1]
+                    for c in range(1,cfg.num_cols+1):
+                        window[(Keys.SELECT_WELL,(r,c))].update(value=values[event])
+            
             # Camera Settings Section
             elif event.startswith(Keys.OPEN_CAMERA_SETTINGS_SECTION):
-                opened = not opened
+                camera_section_opened_flag = not camera_section_opened_flag
                 window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
-                window[Keys.CAMERA_SECTION].update(visible=opened)
+                window[Keys.CAMERA_SECTION].update(visible=camera_section_opened_flag)
             # Update Slider and Text
             # Brightness
             elif event == Keys.BRIGHTNESS:
@@ -814,10 +831,10 @@ def main():
                     print("Switched to Manual Mode Tab")
 
                     # Close Camera Settings Dropdown if opened when switching tabs
-                    if opened:
-                        opened = not opened
+                    if camera_section_opened_flag:
+                        camera_section_opened_flag = not camera_section_opened_flag
                         window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
-                        window[Keys.CAMERA_SECTION].update(visible=opened)
+                        window[Keys.CAMERA_SECTION].update(visible=camera_section_opened_flag)
 
                     # Show Image Preview
                     window[Keys.SHOW_IMAGE].update(visible=True)

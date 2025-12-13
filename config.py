@@ -49,6 +49,7 @@ class DefaultsConfig:
             self.home_on_startup = config['misc']['home_on_startup']
             self.zstack_plus_minus_count = config['misc']['zstack_plus_minus_count']
             self.zstack_step_distance = config['misc']['zstack_step_distance']
+            self.require_printer_connection = config['misc']['require_printer_connection']
 
             # Printer Connection
             self.printer_name = config['printer']['name']
