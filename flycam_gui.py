@@ -50,6 +50,7 @@ class Keys:
     ZSTACK_COUNT = "-ZSTACK_COUNT-"
     # ----- Well Selection Section -----
     OPEN_WELL_SELECTION_SECTION = "-OPEN_WELL_SELECTION_SECTION-"
+    WELL_SELECTION_SECTION = "-WELL_SELECTION_SECTION-"
     SELECT_ROW = "-SELECT_ROW-"
     SELECT_COL = "-SELECT_COL-"
     SELECT_WELL = "-SELECT_WELL"
@@ -433,7 +434,7 @@ def main():
             col_elements.append([sg.Checkbox(f'', default=True, key=(Keys.SELECT_WELL,(r,c)))])
         checkbox_grid_layout.append(sg.Column(col_elements))
     tab_1_column_1_collapse_layout_well_select = sg.pin(sg.Column([[sg.Column(checkbox_grid_row_selectors, expand_y=True),
-                                                                    sg.Column([checkbox_grid_layout])]]))
+                                                                    sg.Column([checkbox_grid_layout])]], key=Keys.WELL_SELECTION_SECTION, visible=False))
     # Advanced camera settings collapsible
     # Left column, core settings subsection
     core_settings_col = [
@@ -642,6 +643,7 @@ def main():
     is_running_manual = False
 
     camera_section_opened_flag = False
+    well_selection_section_opened_flag = False
     # ----- Logger setup -----
     output_queue = queue.Queue()
     log = Logger(verbose=True, output_queue=output_queue)
@@ -682,11 +684,15 @@ def main():
                     r = event[1]
                     for c in range(1,cfg.num_cols+1):
                         window[(Keys.SELECT_WELL,(r,c))].update(value=values[event])
-            
+            # Well Selection Section
+            elif event.startswith(Keys.OPEN_WELL_SELECTION_SECTION):
+                well_selection_section_opened_flag = not well_selection_section_opened_flag
+                window[Keys.OPEN_WELL_SELECTION_SECTION].update("▼ Well Selection" if well_selection_section_opened_flag else "▶ Well Selection")
+                window[Keys.WELL_SELECTION_SECTION].update(visible=well_selection_section_opened_flag)
             # Camera Settings Section
             elif event.startswith(Keys.OPEN_CAMERA_SETTINGS_SECTION):
                 camera_section_opened_flag = not camera_section_opened_flag
-                window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
+                window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if camera_section_opened_flag else "▶ Camera Settings")
                 window[Keys.CAMERA_SECTION].update(visible=camera_section_opened_flag)
             # Update Slider and Text
             # Brightness
@@ -830,10 +836,15 @@ def main():
                 elif selected_tab_group == "Manual Controller":
                     print("Switched to Manual Mode Tab")
 
+                    # Close Well Selection Dropdown if opened when switching tabs
+                    if well_selection_section_opened_flag:
+                        well_selection_section_opened_flag = not well_selection_section_opened_flag
+                        window[Keys.OPEN_WELL_SELECTION_SECTION].update("▼ Well Selection" if well_selection_section_opened_flag else "▶ Well Selection")
+                        window[Keys.WELL_SELECTION_SECTION].update(visible=well_selection_section_opened_flag)
                     # Close Camera Settings Dropdown if opened when switching tabs
                     if camera_section_opened_flag:
                         camera_section_opened_flag = not camera_section_opened_flag
-                        window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if opened else "▶ Camera Settings")
+                        window[Keys.OPEN_CAMERA_SETTINGS_SECTION].update("▼ Camera Settings" if camera_section_opened_flag else "▶ Camera Settings")
                         window[Keys.CAMERA_SECTION].update(visible=camera_section_opened_flag)
 
                     # Show Image Preview
@@ -1025,9 +1036,11 @@ def main():
             
     # Safe Teardown
     finally:
-        if camera:
+        try:
             camera.close()
             print("Camera Closed")
+        except:
+            pass
         printer.close_printer()
         if window:
             window.close()
