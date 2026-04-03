@@ -1,6 +1,6 @@
 capture:    # I/O settings
   input_csv: "/home/emryg/Documents/FlycamApp/snakepath_file.csv"   # Default input csv full path
-  output_dir: "/media/emryg/2712-63F2/well_photos"    # Default output directory full path; leave blank to use /home/YOUR_USER/Documents/FlycamApp/well_photos
+  output_dir: ""    # Default output directory full path; leave blank to use /home/YOUR_USER/Documents/FlycamApp/well_photos
   output_prefix: ""   # Optional prefix for all photos
   output_suffix: ""   # Optional suffix for all photos
 
@@ -38,6 +38,7 @@ misc:
   preview_by_default: False    # Set to True to set preview mode as the default capture mode
   verbose: True   # Set to True to turn on verbose mode
   home_on_startup: False   # Set to True to home on startup
+  home_after_capture: True    # Set to True to home at the end of capture 
   zstack_plus_minus_count: 1    # Adds n number of z variation up and down from the set path in increments of 0.1mm. At n=5, 11 pictures will be taken for each well.
   zstack_step_distance: 0.3    # How far each stack layer is from each other in millimeters
   require_printer_connection: True    # Require a connected printer to open the GUI. default: True
@@ -53,3 +54,6 @@ printer:
     y: 220
     z: 250
     speed: 150
+  clearance_min:
+    z: 15   # Minimum Z-value to avoid collision between plate and camera during capture
+

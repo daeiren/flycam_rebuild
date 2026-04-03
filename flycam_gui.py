@@ -46,6 +46,8 @@ class Keys:
     OUTPUT_PREFIX = "-OUTPUT_PREFIX-"
     OUTPUT_SUFFIX = "-OUTPUT_SUFFIX-"
     OUTPUT_PREVIEW = "-OUTPUT_PREVIEW-"
+    OVERRIDE_Z = "-OVERRIDE_Z-"
+    OVERRIDE_Z_VAL ="-OVERRIDE_Z_VAL-"
     ZSTACK_ON = "-ZSTACK_ON-"
     ZSTACK_COUNT = "-ZSTACK_COUNT-"
     # ----- Well Selection Section -----
@@ -335,21 +337,25 @@ def run_capture(event, values, log, thread_done, thread_stop, preview_win_id):
                 well_number = ((cycle-1)//cols)*cols + (cols-((cycle-1)%cols))
             else:
                 well_number = cycle
-            
-            # Move to location
-            split_location = location.split("Z")
-            offset_location = f"{split_location[0]}Z{float(split_location[1]) + offset}"
-            log.debug(f"Location is {offset_location}")
-            printer.run_gcode(f"{offset_location} F800")
-            log.info(f'Cycle {cycle}/{well_count}: Going to Well Number {"%02d" % well_number}')
-            printer.wait()
-            time.sleep(float(cfg.move_sleep_time))
 
-            # Take Picture
             # Deconvolute current position from well number
             current_row = ((well_number - 1) // cfg.num_cols) + 1
             current_col = (well_number % cfg.num_cols) if (well_number % cfg.num_cols) != 0 else 8
+
             if values[(Keys.SELECT_WELL, (current_row, current_col))]:      # If current (r,c) position is selected for
+                # Move to location
+                split_location = location.split("Z")
+                if values[Keys.OVERRIDE_Z]:     # Use the inputted Z-value over the pathing file if True
+                    offset_location = f"{split_location[0]}Z{float(values[Keys.OVERRIDE_Z_VAL]) + offset}"
+                else:
+                    offset_location = f"{split_location[0]}Z{float(split_location[1]) + offset}"
+                log.debug(f"Location is {offset_location}")
+                printer.run_gcode(f"{offset_location} F800")
+                log.info(f'Cycle {cycle}/{well_count}: Going to Well Number {"%02d" % well_number}')
+                printer.wait()
+                time.sleep(float(cfg.move_sleep_time))
+
+                # Take Picture
                 if preview_mode is False:    
                     log.info(f"Starting capture cycle")           
                     photo_file_path = ioh.get_photo_path(values[Keys.OUTPUT_DIR], values[Keys.OUTPUT_PREFIX], values[Keys.OUTPUT_SUFFIX], "%02d" % cycle)
@@ -377,7 +383,10 @@ def run_capture(event, values, log, thread_done, thread_stop, preview_win_id):
             if cycle % cols == 0:
                 even_row_flag = not even_row_flag
 
-    log.say("Process Complete!")
+    log.say("Capture Complete!")
+    if cfg.home_after_capture:
+        log.say("Homing")
+        printer.home()
     log.say("")
     log.say("==================================================")
     if preview_mode is False:
@@ -410,6 +419,13 @@ def main():
     # ===== Printer Startup =====
     # Setup 3D Printer
     ser = printer.get_printer()
+    
+    if cfg.require_printer_connection:
+        print(ser)
+        if not ser:
+            print("Printer not found! Is it on?")
+            return
+
     if cfg.home_on_startup:
         print("Homing")
         printer.home()
@@ -422,8 +438,16 @@ def main():
     # ----- Tab 1 (Run Capture) -----
     
     checkbox_grid_row_selectors = [[sg.VPush()]]
+    row_letter_map = {
+        1: 'A',
+        2: 'B',
+        3: 'C',
+        4: 'D',
+        5: 'E',
+        6: 'F',
+    }
     for r in range(1,cfg.num_rows+1):
-        checkbox_grid_row_selectors.append([sg.Checkbox(f'{r}', default=True, key=(Keys.SELECT_ROW,r), enable_events=True)])
+        checkbox_grid_row_selectors.append([sg.Checkbox(f'{row_letter_map[r]}', default=True, key=(Keys.SELECT_ROW,r), enable_events=True)])
     checkbox_grid_layout = []
     for c in range(1,cfg.num_cols+1):
         col_elements = [
@@ -502,6 +526,7 @@ def main():
         [sg.Text("▶ Camera Settings", enable_events=True, key=Keys.OPEN_CAMERA_SETTINGS_SECTION)],
         [tab_1_column_1_collapse_layout],
         #[sg.VPush(background_color='orange')],
+        [sg.Checkbox("Override Z Value", key=Keys.OVERRIDE_Z), sg.Input(size=(4,1), key=Keys.OVERRIDE_Z_VAL, enable_events=True)],
         [sg.Checkbox("Z-Stack", key=Keys.ZSTACK_ON), sg.Input(cfg.zstack_plus_minus_count, size=(4,1), key=Keys.ZSTACK_COUNT)],
         [sg.Text("Select Capture Mode")],
         [sg.Radio("Preview", group_id="MODE_GROUP", default=cfg.preview_by_default, key=Keys.PREVIEW_MODE),
@@ -771,7 +796,20 @@ def main():
                     window[Keys.SATURATION].update(val)
                 except ValueError:
                     pass
-                
+            # Update Z Override if too high or low
+            elif event == Keys.OVERRIDE_Z_VAL:
+                val_str = values[Keys.OVERRIDE_Z_VAL]
+                try:
+                    val = float(val_str)
+                    if val < cfg.min_z:
+                        val = cfg.min_z
+                    elif val > max_z:
+                        val = cfg.max_z
+                    
+                    if val != float(val_str):
+                        window[Keys.OVERRIDE_Z_VAL].update[str(val)]
+                except ValueError:
+                    pass
             # Start Capture Button
             elif event == Keys.START_CAPTURE:
                 print("Pressed START_CAPTURE")

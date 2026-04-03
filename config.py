@@ -47,6 +47,7 @@ class DefaultsConfig:
             self.picture_by_default = not self.preview_by_default
             self.verbose_mode = config['misc']['verbose']
             self.home_on_startup = config['misc']['home_on_startup']
+            self.home_after_capture = config['misc']['home_after_capture']
             self.zstack_plus_minus_count = config['misc']['zstack_plus_minus_count']
             self.zstack_step_distance = config['misc']['zstack_step_distance']
             self.require_printer_connection = config['misc']['require_printer_connection']
@@ -61,6 +62,7 @@ class DefaultsConfig:
             self.max_y = config['printer']['max']['y']
             self.max_z = config['printer']['max']['z']
             self.max_speed = config['printer']['max']['speed']
+            self.min_z = config['printer']['clearance_min']['z']
 
         except FileNotFoundError:
             print(f"[ERROR] Config file '{file_path}' not found")
