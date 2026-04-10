@@ -48,6 +48,7 @@ class Keys:
     OUTPUT_PREVIEW = "-OUTPUT_PREVIEW-"
     OVERRIDE_Z = "-OVERRIDE_Z-"
     OVERRIDE_Z_VAL ="-OVERRIDE_Z_VAL-"
+    OVERRIDE_Z_WARN = "-OVERRIDE_Z_WARN-"
     ZSTACK_ON = "-ZSTACK_ON-"
     ZSTACK_COUNT = "-ZSTACK_COUNT-"
     # ----- Well Selection Section -----
@@ -192,7 +193,8 @@ def run_manual(event, values, log, manual_queue, thread_done, thread_stop, threa
     global frame_bytes
     global crosshair_radius
     global crosshair_on
-
+    crosshair_radius = int(values[Keys.RADIUS])
+    crosshair_on = bool(values[Keys.CROSSHAIR_ON])
     # Open Camera
     try:
         camera.close()
@@ -230,6 +232,7 @@ def run_manual(event, values, log, manual_queue, thread_done, thread_stop, threa
 
             # Draw crosshair
             if crosshair_on:
+                
                 frame = draw_crosshair(frame, circle_radius=crosshair_radius)
 
             # Convert to JPEG for faster GUI rendering
@@ -526,7 +529,7 @@ def main():
         [sg.Text("▶ Camera Settings", enable_events=True, key=Keys.OPEN_CAMERA_SETTINGS_SECTION)],
         [tab_1_column_1_collapse_layout],
         #[sg.VPush(background_color='orange')],
-        [sg.Checkbox("Override Z Value", key=Keys.OVERRIDE_Z), sg.Input(size=(4,1), key=Keys.OVERRIDE_Z_VAL, enable_events=True)],
+        [sg.Checkbox("Override Z Value", key=Keys.OVERRIDE_Z), sg.Input(size=(4,1), key=Keys.OVERRIDE_Z_VAL, enable_events=True), sg.Text(f"WARNING! Setting below {cfg.min_z}.00 may cause collisions", text_color='red', key=Keys.OVERRIDE_Z_WARN, visible=False)],
         [sg.Checkbox("Z-Stack", key=Keys.ZSTACK_ON), sg.Input(cfg.zstack_plus_minus_count, size=(4,1), key=Keys.ZSTACK_COUNT)],
         [sg.Text("Select Capture Mode")],
         [sg.Radio("Preview", group_id="MODE_GROUP", default=cfg.preview_by_default, key=Keys.PREVIEW_MODE),
@@ -633,7 +636,7 @@ def main():
     tab_2_layout =[
         [sg.Text("Manual Controller", font=(None, 14, 'bold'))],
         [sg.Push(), sg.pin(sg.Column([[sg.Image(filename="", visible=False, key=Keys.IMAGE)]], key=Keys.SHOW_IMAGE)), sg.Push()],
-        [sg.Push(), sg.Checkbox("Crosshair", default=True, enable_events=True, key=Keys.CROSSHAIR_ON), sg.Text("Radius"), sg.Slider((10,200), 180, 1, orientation="h", enable_events=True, key=Keys.RADIUS), sg.Push()],
+        [sg.Push(), sg.Checkbox("Crosshair", default=True, enable_events=True, key=Keys.CROSSHAIR_ON), sg.Text("Radius"), sg.Slider((10,200), default_value=180, resolution=1, orientation="h", enable_events=True, key=Keys.RADIUS), sg.Push()],
         [sg.Column(all_controls_layout), sg.VerticalSeparator(), sg.Column(corners_input_layout)]
         ]
     # ----- Define Window Layout -----
@@ -801,13 +804,17 @@ def main():
                 val_str = values[Keys.OVERRIDE_Z_VAL]
                 try:
                     val = float(val_str)
-                    if val < cfg.min_z:
-                        val = cfg.min_z
-                    elif val > max_z:
+                    if val < 0:
+                        val = 0
+                    elif val > cfg.max_z:
                         val = cfg.max_z
                     
                     if val != float(val_str):
-                        window[Keys.OVERRIDE_Z_VAL].update[str(val)]
+                        window[Keys.OVERRIDE_Z_VAL].update(str(val))
+                    if val < cfg.min_z:
+                        window[Keys.OVERRIDE_Z_WARN].update(visible=True)
+                    else:
+                        window[Keys.OVERRIDE_Z_WARN].update(visible=False)
                 except ValueError:
                     pass
             # Start Capture Button
@@ -873,7 +880,7 @@ def main():
                     thread_stop.set()
                 elif selected_tab_group == "Manual Controller":
                     print("Switched to Manual Mode Tab")
-
+                    
                     # Close Well Selection Dropdown if opened when switching tabs
                     if well_selection_section_opened_flag:
                         well_selection_section_opened_flag = not well_selection_section_opened_flag
@@ -897,7 +904,7 @@ def main():
                     
                     # Show Image element
                     window[Keys.IMAGE].update(visible=True)
-                    
+
                     # Start thread
                     thread = threading.Thread(target=run_manual, args=(event, values, log, manual_queue, thread_done, thread_stop, thread_update, thread_ready), name="ManualController", daemon=True)
                     thread.start()
@@ -1062,6 +1069,13 @@ def main():
                             window[Keys.IMAGE].update(data=frame_bytes)
                         except Exception as e:
                             print("Update failed", e)
+
+                if not manual_queue.empty():
+                    window[Keys.TAB_GROUP].Widget.tab(0, state="disabled")
+                    window[Keys.TAB_GROUP].Widget.tab(0, text="✕ Locked")
+                else:
+                    window[Keys.TAB_GROUP].Widget.tab(0, state="normal")
+                    window[Keys.TAB_GROUP].Widget.tab(0, text="Auto Capture")
 
             # ----- Queue manager -----
             # Sends message to output window
